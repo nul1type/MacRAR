@@ -1,0 +1,24 @@
+//
+//  Localizable.strings
+//  MacRAR
+//
+//  Created by Анатолий Александрович on 02.07.2025.
+//
+
+
+"select_rar" = "Select RAR File";
+"extract_selected" = "Extract Selected";
+"extract_all" = "Extract All";
+"choose_folder" = "Choose Folder";
+"extract_here" = "Extract Here";
+"status_select" = "Select a RAR archive";
+"status_files" = "%d files in archive";
+"status_extracting" = "Extracting files...";
+"status_done" = "Extraction complete";
+"status_error" = "Error";
+"cancel" = "Cancel";
+"search" = "Search";
+"no_files" = "No files in archive";
+"error_unrar" = "unrar utility not found";
+"error_extraction" = "Extraction failed";
+"error_dir" = "Directory error";
