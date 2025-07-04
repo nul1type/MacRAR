@@ -22,3 +22,46 @@
 "error_unrar" = "unrar utility not found";
 "error_extraction" = "Extraction failed";
 "error_dir" = "Directory error";
+"access_request_title" = "Access to file required";
+"access_request_message" = "To work with the archive, grant access in the system dialog";
+"access_request_button" = "Grant access";
+// Localizable.strings (English)
+
+"create_archive" = "Create Archive";
+"select_rar_binary" = "Select RAR Binary";
+"need_rar_binary" = "RAR utility not found. To create archives, please select the RAR binary.";
+"copy_status" = "Copy Status";
+"create_archive_title" = "Create New Archive";
+"archive_name" = "Archive Name";
+"new_archive" = "New Archive";
+"add_files" = "Add Files";
+"add_folder" = "Add Folder";
+"clear" = "Clear";
+"drop_files_here" = "Drop files here or click the buttons above";
+"copied_to_clipboard" = "Copied to clipboard";
+"file_selection_error" = "File selection error: %@";
+"files_added" = "Added %d files";
+"select_files" = "Select Files";
+"add" = "Add";
+"select_folder" = "Select Folder";
+"access_denied" = "Access to the file was denied";
+"select_all" = "Select All";
+"deselect_all" = "Deselect All";
+
+"temporary_access_failed" = "Failed to get temporary access to file";
+"persistent_access_failed" = "Failed to get persistent access";
+"bookmark_save_error" = "Bookmark save error";
+"bookmark_load_error" = "Bookmark load error";
+"auto_access_error" = "Auto access error";
+"loading_archive" = "Loading archive: %@";
+"no_archive_path" = "No archive path specified";
+"unrar_output_error" = "Failed to parse unrar output";
+"requesting_access" = "Requesting access...";
+"extraction_error" = "Extraction failed with error code: %d";
+"rar_binary_selected" = "RAR binary selected successfully";
+"no_rar_binary" = "RAR binary not found";
+"save_archive" = "Save Archive";
+"archive_creation_canceled" = "Archive creation canceled";
+"creating_archive" = "Creating archive...";
+"rar_restore_error" = "Failed to restore RAR binary: %@";
+"access_request_message_format" = "The app needs access to the file %@ to work with the archive. Click \"Grant Access\" to provide access.";

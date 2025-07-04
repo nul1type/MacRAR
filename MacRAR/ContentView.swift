@@ -66,7 +66,9 @@ struct ContentView: View {
             ) { result in
                 switch lastActivePicker {
                 case .rarFile:
-                    handleFilePickerResult(result)
+                    if case .success(let urls) = result, let url = urls.first {
+                        appState.openArchiveIfAccessGranted(for: url)
+                    }
                 case .rarBinary:
                     handleRARSelection(result)
                 case nil:
@@ -443,10 +445,19 @@ struct ContentView: View {
     }
 
     private func handleFilePickerResult(_ result: Result<[URL], Error>) {
-        if case .success(let urls) = result, let url = urls.first {
-            appState.loadArchive(path: url.path)
+            if case .success(let urls) = result, let url = urls.first {
+                // Запрос постоянного доступа к файлу
+                appState.requestPersistentAccess(to: url) { granted in
+                    if granted {
+                        DispatchQueue.main.async {
+                            appState.loadArchive(path: url.path)
+                        }
+                    } else {
+                        appState.statusMessage = NSLocalizedString("access_denied", comment: "")
+                    }
+                }
+            }
         }
-    }
 
     private func handleRARSelection(_ result: Result<[URL], Error>) {
         if case .success(let urls) = result, let url = urls.first {

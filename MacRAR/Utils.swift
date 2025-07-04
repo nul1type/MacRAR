@@ -34,21 +34,27 @@ class SecureFile: NSObject, Identifiable, ObservableObject, NSCoding {
     }
     
     func accessSecurityScopedResource(_ block: () throws -> Void) rethrows {
-        guard let bookmarkData = bookmarkData else { return }
-        
-        var isStale = false
-        guard let url = try? URL(
-            resolvingBookmarkData: bookmarkData,
-            options: .withSecurityScope,
-            relativeTo: nil,
-            bookmarkDataIsStale: &isStale
-        ) else { return }
-        
-        if url.startAccessingSecurityScopedResource() {
-            defer { url.stopAccessingSecurityScopedResource() }
+            guard let bookmarkData = bookmarkData else { return }
+            
+            var isStale = false
+            guard let url = try? URL(
+                resolvingBookmarkData: bookmarkData,
+                options: .withSecurityScope,
+                relativeTo: nil,
+                bookmarkDataIsStale: &isStale
+            ) else { return }
+            
+            if !url.startAccessingSecurityScopedResource() {
+                print("Не удалось получить доступ к ресурсу")
+                return
+            }
+            
+            defer {
+                url.stopAccessingSecurityScopedResource()
+            }
+            
             try block()
         }
-    }
 }
 
 // Убрано явное соответствие Equatable, так как оно уже реализовано через ==

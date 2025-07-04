@@ -1,23 +1,65 @@
 import SwiftUI
 import Cocoa
 
+//@main
+//struct MacRARApp: App {
+//    @NSApplicationDelegateAdaptor var appDelegate: AppDelegate
+//    @StateObject var appState = AppState()
+//    
+//    var body: some Scene {
+//        WindowGroup {
+//            ContentView()
+//                .environmentObject(appState)
+//                .onOpenURL { url in
+//                    appDelegate.handleRarFile(url: url, appState: appState)
+//                }
+//                .onAppear {
+//                    if let initialFile = appDelegate.initialRarFile {
+//                        appState.loadArchive(path: initialFile.path)
+//                    }
+//                }
+//        }
+//    }
+//}
+
 @main
 struct MacRARApp: App {
     @NSApplicationDelegateAdaptor var appDelegate: AppDelegate
     @StateObject var appState = AppState()
+    @Environment(\.scenePhase) var scenePhase
     
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(appState)
-                .onOpenURL { url in
-                    appDelegate.handleRarFile(url: url, appState: appState)
-                }
-                .onAppear {
-                    if let initialFile = appDelegate.initialRarFile {
+            .environmentObject(appState)
+               .onOpenURL { url in
+                   appDelegate.handleRarFile(url: url, appState: appState)
+               }
+            // MacRARApp.swift
+            .onAppear {
+                appState.loadBookmarks()
+                
+                if let initialFile = appDelegate.initialRarFile {
+                    // Автоматический запрос доступа для начального файла
+                    if appState.autoRequestAccess(for: initialFile) {
                         appState.loadArchive(path: initialFile.path)
                     }
                 }
+            }
+               .onChange(of: scenePhase) { newPhase in
+                   switch newPhase {
+                   case .active:
+                       appState.loadBookmarks()
+                   case .background:
+                       appState.stopAccessingResources()
+                   default: break
+                   }
+               }
+        }
+        .commands {
+            // Дополнительные команды меню (если нужны)
+            CommandGroup(replacing: .newItem) {}
+            CommandGroup(replacing: .pasteboard) {}
         }
     }
 }
@@ -72,9 +114,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
     
+    
+    
     func handleRarFile(url: URL, appState: AppState) {
-        removeQuarantineAttribute(from: url)
-        appState.loadArchive(path: url.path)
+        appState.requestAccessConfirmation(for: url) { granted in
+            if granted {
+                DispatchQueue.main.async {
+                    appState.loadArchive(path: url.path)
+                }
+            }
+        }
     }
 
     private func removeQuarantineAttribute(from url: URL) {

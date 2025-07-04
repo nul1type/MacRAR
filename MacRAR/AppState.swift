@@ -39,6 +39,230 @@ class AppState: ObservableObject {
         checkRARBinary()
     }
     
+    private let bookmarksKey = "savedBookmarks"
+    private var accessedURLs: [URL] = []
+    
+    func openArchiveIfAccessGranted(for url: URL) {
+        if hasPersistentAccess(to: url) {
+            loadArchive(path: url.path)
+        } else {
+            requestAccessAndOpenArchive(for: url)
+        }
+    }
+    
+    private func requestAccessAndOpenArchive(for url: URL) {
+        // Пытаемся получить временный доступ
+        guard url.startAccessingSecurityScopedResource() else {
+            statusMessage = NSLocalizedString("temporary_access_failed", comment: "")
+            return
+        }
+        
+        // После получения временного доступа показываем диалог
+        DispatchQueue.main.async {
+            let alert = NSAlert()
+            alert.messageText = NSLocalizedString("access_request_title", comment: "")
+            alert.informativeText = String(
+                format: NSLocalizedString("access_request_message_format", comment: ""),
+                url.lastPathComponent
+            )
+            alert.addButton(withTitle: NSLocalizedString("access_request_button", comment: ""))
+            alert.addButton(withTitle: NSLocalizedString("cancel", comment: ""))
+            
+            let response = alert.runModal()
+            url.stopAccessingSecurityScopedResource()
+            
+            if response == .alertFirstButtonReturn {
+                if self.saveBookmarkAndStartAccess(for: url) {
+                    self.loadArchive(path: url.path)
+                } else {
+                    self.statusMessage = NSLocalizedString("persistent_access_failed", comment: "")
+                }
+            } else {
+                self.statusMessage = NSLocalizedString("access_denied", comment: "")
+            }
+        }
+    }
+    
+    private func hasPersistentAccess(to url: URL) -> Bool {
+        guard let bookmarks = UserDefaults.standard.dictionary(forKey: bookmarksKey) as? [String: Data] else {
+            return false
+        }
+        return bookmarks[url.path] != nil
+    }
+    
+    private func saveBookmarkAndStartAccess(for url: URL) -> Bool {
+        do {
+            // Получаем временный доступ для создания закладки
+            guard url.startAccessingSecurityScopedResource() else {
+                return false
+            }
+            defer { url.stopAccessingSecurityScopedResource() }
+            
+            // Создаем security-scoped bookmark
+            let bookmarkData = try url.bookmarkData(
+                options: [.withSecurityScope, .securityScopeAllowOnlyReadAccess],
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
+            
+            // Сохраняем закладку
+            var bookmarks = UserDefaults.standard.dictionary(forKey: bookmarksKey) ?? [:]
+            bookmarks[url.path] = bookmarkData
+            UserDefaults.standard.set(bookmarks, forKey: bookmarksKey)
+            
+            // Начинаем постоянный доступ
+            if url.startAccessingSecurityScopedResource() {
+                accessedURLs.append(url)
+                return true
+            }
+            return false
+        } catch {
+            print(NSLocalizedString("bookmark_save_error", comment: "") + ": \(error)")
+            return false
+        }
+    }
+    
+    func loadBookmarks() {
+        guard let bookmarks = UserDefaults.standard.dictionary(forKey: bookmarksKey) as? [String: Data] else { return }
+        
+        for (path, bookmarkData) in bookmarks {
+            var isStale = false
+            do {
+                let url = try URL(
+                    resolvingBookmarkData: bookmarkData,
+                    options: .withSecurityScope,
+                    relativeTo: nil,
+                    bookmarkDataIsStale: &isStale
+                )
+                
+                if isStale {
+                    // Обновляем закладку
+                    _ = self.saveBookmarkAndStartAccess(for: url)
+                } else if url.startAccessingSecurityScopedResource() {
+                    accessedURLs.append(url)
+                }
+            } catch {
+                print(NSLocalizedString("bookmark_load_error", comment: "") + ": \(error)")
+            }
+        }
+    }
+    
+    func stopAccessingResources() {
+        for url in accessedURLs {
+            url.stopAccessingSecurityScopedResource()
+        }
+        accessedURLs.removeAll()
+    }
+    
+    // Проверка наличия доступа
+    private func hasAccess(to url: URL) -> Bool {
+        guard let bookmarks = UserDefaults.standard.dictionary(forKey: bookmarksKey) as? [String: Data] else {
+            return false
+        }
+        return bookmarks[url.path] != nil
+    }
+    
+    // Сохранение закладки и начало доступа
+    func requestPersistentAccess(to url: URL, completion: @escaping (Bool) -> Void) {
+        // Проверяем, есть ли уже доступ
+        if hasAccess(to: url) {
+            completion(true)
+            return
+        }
+        
+        // Открываем панель для предоставления доступа
+        DispatchQueue.main.async {
+            let openPanel = NSOpenPanel()
+            openPanel.title = NSLocalizedString("access_request_title", comment: "")
+            openPanel.message = NSLocalizedString("access_request_message", comment: "")
+            openPanel.prompt = NSLocalizedString("access_request_button", comment: "")
+            openPanel.canChooseFiles = true
+            openPanel.canChooseDirectories = false
+            openPanel.allowsMultipleSelection = false
+            openPanel.directoryURL = url.deletingLastPathComponent()
+            openPanel.nameFieldStringValue = url.lastPathComponent
+            
+            openPanel.begin { response in
+                if response == .OK, let selectedURL = openPanel.url, selectedURL == url {
+                    // Сохраняем закладку для постоянного доступа
+                    self.saveBookmark(for: url)
+                    completion(true)
+                } else {
+                    completion(false)
+                }
+            }
+        }
+    }
+    
+    func autoRequestAccess(for url: URL) -> Bool {
+        // Проверяем, есть ли уже доступ
+        if hasAccess(to: url) {
+            return true
+        }
+        
+        // Пытаемся получить доступ и сохранить закладку
+        do {
+            let bookmarkData = try url.bookmarkData(
+                options: .withSecurityScope,
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
+            
+            // Сохраняем закладку
+            var bookmarks = UserDefaults.standard.dictionary(forKey: "savedBookmarks") ?? [:]
+            bookmarks[url.path] = bookmarkData
+            UserDefaults.standard.set(bookmarks, forKey: "savedBookmarks")
+            
+            // Начинаем доступ
+            return url.startAccessingSecurityScopedResource()
+        } catch {
+            print(NSLocalizedString("auto_access_error", comment: "") + ": \(error)")
+            return false
+        }
+    }
+    
+    func saveBookmark(for url: URL) {
+        do {
+            let bookmarkData = try url.bookmarkData(
+                options: .withSecurityScope,
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
+            
+            var bookmarks = UserDefaults.standard.dictionary(forKey: bookmarksKey) ?? [:]
+            bookmarks[url.path] = bookmarkData
+            UserDefaults.standard.set(bookmarks, forKey: bookmarksKey)
+        } catch {
+            print(NSLocalizedString("bookmark_save_error", comment: "") + ": \(error)")
+        }
+    }
+    
+    func requestFileAccess(completion: @escaping ([URL]?) -> Void) {
+        let openPanel = NSOpenPanel()
+        openPanel.title = NSLocalizedString("select_files", comment: "")
+        openPanel.prompt = NSLocalizedString("add", comment: "")
+        openPanel.canChooseFiles = true
+        openPanel.canChooseDirectories = false
+        openPanel.allowsMultipleSelection = true
+        
+        openPanel.begin { response in
+            guard response == .OK else {
+                completion(nil)
+                return
+            }
+            
+            // Сохранить закладки для каждого файла
+            for url in openPanel.urls {
+                self.saveBookmark(for: url)
+                
+                // Начать доступ к ресурсу
+                url.startAccessingSecurityScopedResource()
+            }
+            
+            completion(openPanel.urls)
+        }
+    }
+    
     // Load multiple archives (currently only the first one)
     func loadArchives(paths: [String]) {
         guard let path = paths.first else { return }
@@ -48,7 +272,10 @@ class AppState: ObservableObject {
     // Load a single archive
     func loadArchive(path: String) {
         selectedRARFilePath = path
-        statusMessage = String(format: NSLocalizedString("loading_archive", comment: ""), URL(fileURLWithPath: path).lastPathComponent)
+        statusMessage = String(
+            format: NSLocalizedString("loading_archive", comment: ""),
+            URL(fileURLWithPath: path).lastPathComponent
+        )
         listArchiveContents()
     }
     
@@ -142,7 +369,10 @@ class AppState: ObservableObject {
                 self.archiveFiles = paths
                 
                 if !self.archiveItems.isEmpty {
-                    self.statusMessage = String(format: NSLocalizedString("status_files", comment: ""), paths.count)
+                    self.statusMessage = String(
+                        format: NSLocalizedString("status_files", comment: ""),
+                        paths.count
+                    )
                 } else {
                     self.statusMessage = NSLocalizedString("no_files", comment: "")
                 }
@@ -151,38 +381,37 @@ class AppState: ObservableObject {
             }
             
         } catch {
-            statusMessage = String(format: NSLocalizedString("error_general", comment: ""), error.localizedDescription)
+            statusMessage = String(
+                format: NSLocalizedString("error_general", comment: ""),
+                error.localizedDescription
+            )
         }
     }
-    
-    // Extract files from archive
+
     func extractFiles(_ files: [String]?) {
         guard let unrarPath = Bundle.main.path(forResource: "unrar", ofType: nil) else {
             statusMessage = NSLocalizedString("error_unrar", comment: "")
             return
         }
         
-        let openPanel = NSOpenPanel()
-        openPanel.title = NSLocalizedString("choose_folder", comment: "")
-        openPanel.prompt = NSLocalizedString("extract_here", comment: "")
-        openPanel.canChooseFiles = false
-        openPanel.canChooseDirectories = true
-        openPanel.canCreateDirectories = true
+        self.isExtracting = true
+        self.statusMessage = NSLocalizedString("requesting_access", comment: "")
         
-        openPanel.begin { response in
-            guard response == .OK, let url = openPanel.url else {
-                self.statusMessage = NSLocalizedString("extraction_canceled", comment: "")
+        // Запрос доступа к целевой директории
+        requestDirectoryAccess { [weak self] destinationURL in
+            guard let self = self, let destinationURL = destinationURL else {
+                self?.isExtracting = false
+                self?.statusMessage = NSLocalizedString("access_denied", comment: "")
                 return
             }
             
-            self.isExtracting = true
             self.statusMessage = NSLocalizedString("status_extracting", comment: "")
             
             DispatchQueue.global(qos: .userInitiated).async {
                 let process = Process()
                 process.executableURL = URL(fileURLWithPath: unrarPath)
                 
-                var arguments = ["x", "-o+", self.selectedRARFilePath, url.path]
+                var arguments = ["x", "-o+", self.selectedRARFilePath, destinationURL.path]
                 if let files = files { arguments.append(contentsOf: files) }
                 process.arguments = arguments
                 
@@ -194,17 +423,56 @@ class AppState: ObservableObject {
                         self.isExtracting = false
                         if process.terminationStatus == 0 {
                             self.statusMessage = NSLocalizedString("status_done", comment: "")
-                            NSWorkspace.shared.open(url)
+                            
+                            // Открываем директорию в Finder
+                            NSWorkspace.shared.open(destinationURL)
                         } else {
-                            self.statusMessage = String(format: NSLocalizedString("extraction_error", comment: ""), process.terminationStatus)
+                            self.statusMessage = String(
+                                format: NSLocalizedString("extraction_error", comment: ""),
+                                process.terminationStatus
+                            )
                         }
+                        
+                        // Останавливаем доступ к ресурсу
+                        destinationURL.stopAccessingSecurityScopedResource()
                     }
                 } catch {
                     DispatchQueue.main.async {
                         self.isExtracting = false
-                        self.statusMessage = String(format: NSLocalizedString("error_general", comment: ""), error.localizedDescription)
+                        self.statusMessage = String(
+                            format: NSLocalizedString("error_general", comment: ""),
+                            error.localizedDescription
+                        )
+                        destinationURL.stopAccessingSecurityScopedResource()
                     }
                 }
+            }
+        }
+    }
+
+    // Новый метод для запроса доступа к директории
+    func requestDirectoryAccess(completion: @escaping (URL?) -> Void) {
+        let openPanel = NSOpenPanel()
+        openPanel.title = NSLocalizedString("choose_folder", comment: "")
+        openPanel.prompt = NSLocalizedString("extract_here", comment: "")
+        openPanel.canChooseFiles = false
+        openPanel.canChooseDirectories = true
+        openPanel.canCreateDirectories = true
+        
+        openPanel.begin { response in
+            guard response == .OK, let url = openPanel.url else {
+                completion(nil)
+                return
+            }
+            
+            // Сохраняем закладку для постоянного доступа
+            self.saveBookmark(for: url)
+            
+            // Начинаем доступ к ресурсу
+            if url.startAccessingSecurityScopedResource() {
+                completion(url)
+            } else {
+                completion(nil)
             }
         }
     }
@@ -318,7 +586,10 @@ class AppState: ObservableObject {
                 } catch {
                     DispatchQueue.main.async {
                         self.isCreatingArchive = false
-                        self.statusMessage = String(format: NSLocalizedString("error_general", comment: ""), error.localizedDescription)
+                        self.statusMessage = String(
+                            format: NSLocalizedString("error_general", comment: ""),
+                            error.localizedDescription
+                        )
                     }
                 }
             }
@@ -347,7 +618,39 @@ class AppState: ObservableObject {
                 
                 canCreateArchives = true
             } catch {
-                statusMessage = String(format: NSLocalizedString("rar_restore_error", comment: ""), error.localizedDescription)
+                statusMessage = String(
+                    format: NSLocalizedString("rar_restore_error", comment: ""),
+                    error.localizedDescription
+                )
+            }
+        }
+    }
+}
+
+// AppState.swift
+extension AppState {
+    func requestAccessConfirmation(for url: URL, completion: @escaping (Bool) -> Void) {
+        DispatchQueue.main.async {
+            let alert = NSAlert()
+            alert.messageText = NSLocalizedString("access_request_title", comment: "")
+            alert.informativeText = String(
+                format: NSLocalizedString("access_request_message_format", comment: ""),
+                url.lastPathComponent
+            )
+            alert.addButton(withTitle: NSLocalizedString("access_request_button", comment: ""))
+            alert.addButton(withTitle: NSLocalizedString("cancel", comment: ""))
+            
+            let response = alert.runModal()
+            if response == .alertFirstButtonReturn {
+                // Пользователь разрешил доступ
+                self.saveBookmark(for: url)
+                if url.startAccessingSecurityScopedResource() {
+                    completion(true)
+                } else {
+                    completion(false)
+                }
+            } else {
+                completion(false)
             }
         }
     }
