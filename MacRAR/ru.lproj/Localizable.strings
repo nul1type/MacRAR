@@ -26,7 +26,6 @@
 "access_request_title" = "Требуется доступ к файлу";
 "access_request_message" = "Для работы с архивом предоставьте доступ в системном диалоге";
 "access_request_button" = "Предоставить доступ";
-// Localizable.strings (Russian)
 
 "create_archive" = "Создать архив";
 "select_rar_binary" = "Выбрать RAR";
@@ -80,7 +79,6 @@
 "rar_execution_failed" = "Ошибка выполнения RAR, код: %d";
 "rar_launch_error" = "Не удалось запустить RAR: %@";
 
-// Русский
 "rar_access_title" = "Предоставьте доступ к RAR";
 "rar_access_message" = "Предоставьте доступ к бинарнику RAR в системном диалоге";
 "grant_access" = "Предоставить доступ";
@@ -112,3 +110,9 @@
 "archive_created_success" = "Архив успешно создан!";
 "closing" = "Закрывается...";
 "archive_creation_canceled" = "Создание архива отменено";
+"gatekeeper_still_blocked" = "Файл всё ещё заблокирован. Проверьте настройки безопасности.";
+"triggering_gatekeeper" = "Вызываем диалог Gatekeeper...";
+"gatekeeper_triggered" = "Диалог Gatekeeper был вызван. Пожалуйста, следуйте инструкциям.";
+"trigger_failed" = "Не удалось вызвать диалог";
+"retry_after_fix" = "Проверить снова";
+"checking_rar" = "Проверка RAR...";

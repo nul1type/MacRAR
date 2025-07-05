@@ -25,7 +25,6 @@
 "access_request_title" = "Access to file required";
 "access_request_message" = "To work with the archive, grant access in the system dialog";
 "access_request_button" = "Grant access";
-// Localizable.strings (English)
 
 "create_archive" = "Create Archive";
 "select_rar_binary" = "Select RAR Binary";
@@ -79,7 +78,6 @@
 "rar_execution_failed" = "RAR execution failed with code: %d";
 "rar_launch_error" = "Failed to launch RAR: %@";
 
-// Английский
 "rar_access_title" = "Grant Access to RAR";
 "rar_access_message" = "Please grant access to the RAR binary in the system dialog";
 "grant_access" = "Grant Access";
@@ -116,3 +114,9 @@
 "archive_created_success" = "Archive created successfully!";
 "closing" = "Closing...";
 "archive_creation_canceled" = "Archive creation cancelled";
+"gatekeeper_still_blocked" = "The file is still blocked. Please check your security settings.";
+"triggering_gatekeeper" = "Invoking Gatekeeper dialog...";
+"gatekeeper_triggered" = "The Gatekeeper dialog has been invoked. Please follow the instructions.";
+"trigger_failed" = "Failed to invoke dialog";
+"retry_after_fix" = "Check again";
+"checking_rar" = "Checking RAR...";
