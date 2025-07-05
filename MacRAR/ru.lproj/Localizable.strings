@@ -66,3 +66,49 @@
 "creating_archive" = "Создание архива...";
 "rar_restore_error" = "Ошибка восстановления RAR утилиты: %@";
 "access_request_message_format" = "Приложению нужен доступ к файлу %@ для работы с архивом. Нажмите \"Предоставить доступ\", чтобы продолжить.";
+"rar_download_site" = "Скачайте бинарник RAR на официальном сайте: https://www.win-rar.com/download.html";
+
+"gatekeeper_title" = "Предупреждение системы безопасности";
+"gatekeeper_general" = "macOS заблокировал запуск RAR.";
+"gatekeeper_message" = "macOS заблокировал запуск RAR из-за настроек безопасности.\n\nПуть: %@\n\nЧтобы исправить:\n1. Перейдите в Системные настройки → Конфиденциальность и безопасность\n2. В разделе 'Безопасность' нажмите 'Разрешить' рядом с RAR";
+"open_security_settings" = "Открыть настройки безопасности";
+"gatekeeper_terminal_fix" = "Альтернативно, вы можете удалить атрибут карантина в Терминале:\nxattr -d com.apple.quarantine \"%@\"";
+
+"rar_permission_error" = "Ошибка прав доступа. Пытаюсь исправить...";
+"rar_permission_fix_failed" = "Не удалось установить права на выполнение";
+"rar_ready_message" = "RAR готов к использованию";
+"rar_execution_failed" = "Ошибка выполнения RAR, код: %d";
+"rar_launch_error" = "Не удалось запустить RAR: %@";
+
+// Русский
+"rar_access_title" = "Предоставьте доступ к RAR";
+"rar_access_message" = "Предоставьте доступ к бинарнику RAR в системном диалоге";
+"grant_access" = "Предоставить доступ";
+"rar_access_denied" = "Доступ к RAR запрещен";
+"rar_activation_failed" = "Не удалось активировать RAR";
+"rar_gatekeeper_activated" = "Gatekeeper активирован. Проверьте настройки безопасности";
+
+"activating_rar" = "Активация RAR...";
+"gatekeeper_activated" = "Активация Gatekeeper выполнена успешно!";
+"gatekeeper_activation_success" = "RAR успешно активирован в системе безопасности macOS.";
+"gatekeeper_instructions" = "Для завершения настройки:";
+"gatekeeper_step1" = "Откройте Системные настройки → Конфиденциальность и безопасность";
+"gatekeeper_step2" = "Прокрутите вниз до раздела Безопасность";
+"gatekeeper_step3" = "Нажмите 'Разрешить всё равно' рядом с RAR";
+"ive_fixed_it" = "Я исправил";
+
+"rar_access_title" = "Требуется доступ к RAR";
+"rar_access_message_format" = "Для использования функционала RAR предоставьте доступ к файлу: %@";
+"access_request_button" = "Предоставить доступ";
+"rar_access_denied" = "Доступ к RAR запрещен";
+"gatekeeper_activated" = "Gatekeeper активирован. Проверьте настройки безопасности";
+"activating_rar" = "Активация RAR...";
+
+"gatekeeper_false_positive" = "Если вы уже разрешили запуск этого приложения, но видите это сообщение, пожалуйста:\n1. Попробуйте принудительно вызвать диалог Gatekeeper кнопкой ниже\n2. Проверьте настройки вручную";
+"gatekeeper_step4" = "Если приложение уже есть в списке разрешенных, удалите его и добавьте снова";
+"trigger_gatekeeper" = "Вызвать диалог Gatekeeper";
+"rar_already_allowed" = "RAR уже разрешен в настройках безопасности";
+
+"archive_created_success" = "Архив успешно создан!";
+"closing" = "Закрывается...";
+"archive_creation_canceled" = "Создание архива отменено";

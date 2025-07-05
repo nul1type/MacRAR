@@ -55,6 +55,31 @@ class SecureFile: NSObject, Identifiable, ObservableObject, NSCoding {
             
             try block()
         }
+    
+    private var accessCount = 0
+        
+        func beginAccess() -> Bool {
+            if accessCount == 0 {
+                guard url.startAccessingSecurityScopedResource() else {
+                    return false
+                }
+            }
+            accessCount += 1
+            return true
+        }
+        
+        func endAccess() {
+            accessCount -= 1
+            if accessCount == 0 {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+        
+        func accessSecurityScopedResource<T>(_ block: () throws -> T) rethrows -> T {
+            beginAccess()
+            defer { endAccess() }
+            return try block()
+        }
 }
 
 // Убрано явное соответствие Equatable, так как оно уже реализовано через ==

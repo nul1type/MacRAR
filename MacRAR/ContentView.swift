@@ -32,6 +32,7 @@ struct ContentView: View {
     @State private var lastActivePicker: PickerType?
     @State private var searchText = ""
     @State private var hoveredFile: String?
+    @State private var rarStatusTimer: Timer?
     
     var body: some View {
         NavigationStack {
@@ -77,11 +78,22 @@ struct ContentView: View {
                 lastActivePicker = nil
             }
             .onAppear {
+                // Проверить RAR при запуске
                 appState.checkRARBinary()
-                appState.statusMessage = NSLocalizedString("status_select", comment: "")
+            }
+            .sheet(isPresented: $appState.showGatekeeperWarning) {
+                gatekeeperInstructionsView
             }
             .sheet(isPresented: $appState.showArchiveCreation) {
                 archiveCreationView
+                    .onChange(of: appState.archiveCreationSuccess) { success in
+                        if success {
+                            // Закрываем окно через 1 секунду после успешного создания
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                                appState.showArchiveCreation = false
+                            }
+                        }
+                    }
             }
             .onDrop(of: [.fileURL], isTargeted: nil) { providers in
                 return handleDroppedArchive(providers: providers)
@@ -89,7 +101,147 @@ struct ContentView: View {
         }
         .accentColor(.blue)
         .preferredColorScheme(.dark)
+//        .alert(isPresented: $appState.showGatekeeperWarning) {
+//                    Alert(
+//                        title: Text(NSLocalizedString("gatekeeper_title", comment: "")),
+//                        message: Text(gatekeeperMessage),
+//                        primaryButton: .default(Text(NSLocalizedString("open_security_settings", comment: ""))) {
+//                            openSecurityPreferences()
+//                        },
+//                        secondaryButton: .cancel(Text(NSLocalizedString("cancel", comment: "")))
+//                    )
+//                }
     }
+    
+    private var gatekeeperInstructionsView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "lock.shield.fill")
+                    .font(.title)
+                    .foregroundColor(.yellow)
+                
+                VStack(alignment: .leading) {
+                    Text(NSLocalizedString("gatekeeper_title", comment: ""))
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    
+                    if let path = appState.quarantinedRARPath {
+                        Text(URL(fileURLWithPath: path).lastPathComponent)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            
+            Divider()
+            
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(NSLocalizedString("gatekeeper_instructions", comment: ""))
+                        .font(.headline)
+                        .padding(.bottom, 4)
+                    
+                    Text(NSLocalizedString("gatekeeper_false_positive", comment: ""))
+                        .foregroundColor(.orange)
+                        .padding(.bottom, 8)
+                    
+                    InstructionStep(number: "1", text: NSLocalizedString("gatekeeper_step1", comment: ""))
+                    InstructionStep(number: "2", text: NSLocalizedString("gatekeeper_step2", comment: ""))
+                    InstructionStep(number: "3", text: NSLocalizedString("gatekeeper_step3", comment: ""))
+                    InstructionStep(number: "4", text: NSLocalizedString("gatekeeper_step4", comment: ""))
+                }
+            }
+            .frame(maxHeight: 200)
+            
+            // Кнопки действий
+            HStack {
+                // Кнопка вызова диалога
+                Button(action: {
+                    if let path = appState.quarantinedRARPath {
+                        let url = URL(fileURLWithPath: path)
+                        appState.triggerGatekeeperDialog(for: url)
+                    }
+                }) {
+                    Label(NSLocalizedString("trigger_gatekeeper", comment: ""), systemImage: "terminal")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                
+                // Кнопка открытия настроек
+                Button(action: {
+                    NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Library/PreferencePanes/Security.prefPane"))
+                }) {
+                    Label(NSLocalizedString("open_security_settings", comment: ""), systemImage: "gear")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+            }
+            
+            // Кнопки завершения
+            HStack {
+                Button(NSLocalizedString("cancel", comment: "")) {
+                    appState.showGatekeeperWarning = false
+                }
+                .buttonStyle(.bordered)
+                
+                Button(NSLocalizedString("retry_after_fix", comment: "")) {
+                    appState.retryRARBinaryCheck()
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+            }
+            .padding(.top, 8)
+        }
+        .padding()
+        .frame(width: 500)
+    }
+
+    private struct InstructionStep: View {
+        let number: String
+        let text: String
+        
+        var body: some View {
+            HStack(alignment: .top) {
+                Text(number + ".")
+                    .fontWeight(.bold)
+                    .frame(width: 24, alignment: .trailing)
+                Text(text)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer()
+            }
+        }
+    }
+        
+        
+        private func startRARStatusCheckTimer() {
+            // Останавливаем предыдущий таймер, если был
+            stopRARStatusCheckTimer()
+            
+            rarStatusTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
+                appState.checkRARBinary()
+                
+                // Если RAR готов, закрываем окно
+                if appState.canCreateArchives {
+                    appState.showGatekeeperWarning = false
+                }
+            }
+        }
+        
+        private func stopRARStatusCheckTimer() {
+            rarStatusTimer?.invalidate()
+            rarStatusTimer = nil
+        }
+    
+    private var gatekeeperMessage: String {
+           guard let path = appState.quarantinedRARPath else {
+               return NSLocalizedString("gatekeeper_general", comment: "")
+           }
+           return String(format: NSLocalizedString("gatekeeper_message", comment: ""), path)
+       }
+       
+   private func openSecurityPreferences() {
+       NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Library/PreferencePanes/Security.prefPane"))
+   }
     
     // MARK: - UI Components
     private var toolbarSection: some View {
@@ -169,9 +321,66 @@ struct ContentView: View {
                 }
             }
             toolbarSection
+            if !appState.canCreateArchives {
+                VStack(spacing: 12) {
+                    linkedRARDownloadText
+                }
+                .padding(.top, 16)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
+    }
+    
+    private var linkedRARDownloadText: some View {
+        let fullText = NSLocalizedString("rar_download_site", comment: "")
+        
+        // Создаем AttributedString с распознаванием ссылок
+        if #available(macOS 12.0, *) {
+            var attributedString: AttributedString {
+                do {
+                    // Пробуем создать AttributedString с автоматическим распознаванием ссылок
+                    var attrString = try AttributedString(
+                        markdown: fullText,
+                        options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+                    )
+                    
+                    // Настраиваем стиль для всей строки
+                    attrString.foregroundColor = .orange
+                    
+                    // Находим и стилизуем URL
+                    if let urlRange = attrString.range(of: "https?://[^\\s]+", options: .regularExpression) {
+                        attrString[urlRange].link = URL(string: String(attrString[urlRange].characters))
+                        attrString[urlRange].underlineStyle = .single
+                    }
+                    return attrString
+                } catch {
+                    // Если не удалось распарсить, возвращаем обычный текст
+                    return AttributedString(fullText)
+                }
+            }
+            
+            return Text(attributedString)
+                .font(.subheadline)
+                .onTapGesture { _ in
+                    // Обработка клика по тексту (на случай если ссылка не распозналась)
+                    if let urlRange = fullText.range(of: "https?://[^\\s]+", options: .regularExpression),
+                       let url = URL(string: String(fullText[urlRange])) {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+        } else {
+            // Решение для старых версий macOS
+            return Text(fullText)
+                .font(.subheadline)
+                .foregroundColor(.orange)
+                .onTapGesture {
+                    if let urlRange = fullText.range(of: "https?://[^\\s]+", options: .regularExpression),
+                       let url = URL(string: String(fullText[urlRange])) {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+        }
     }
     
     private var fileListView: some View {
@@ -388,21 +597,36 @@ struct ContentView: View {
                 .padding(.horizontal)
             }
             
-            Button(action: appState.createArchive) {
-                if appState.isCreatingArchive {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle())
-                        .padding(8)
-                } else {
-                    Text(NSLocalizedString("create_archive", comment: ""))
-                        .font(.headline)
-                        .padding(.vertical, 10)
-                        .frame(maxWidth: .infinity)
+            if appState.archiveCreationSuccess {
+                        VStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 48))
+                                .foregroundColor(.green)
+                                .padding()
+                            
+                            Text(NSLocalizedString("archive_created_success", comment: ""))
+                                .font(.title2)
+                        }
+                        .transition(.opacity)
+                    }
+            else {
+                
+                Button(action: appState.createArchive) {
+                    if appState.isCreatingArchive {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle())
+                            .padding(8)
+                    } else {
+                        Text(NSLocalizedString("create_archive", comment: ""))
+                            .font(.headline)
+                            .padding(.vertical, 10)
+                            .frame(maxWidth: .infinity)
+                    }
                 }
+                .buttonStyle(.liquidGlassProminent)
+                .disabled(appState.filesForArchiving.isEmpty || appState.archiveName.isEmpty || appState.isCreatingArchive)
+                .padding(.bottom, 12)
             }
-            .buttonStyle(.liquidGlassProminent)
-            .disabled(appState.filesForArchiving.isEmpty || appState.archiveName.isEmpty || appState.isCreatingArchive)
-            .padding(.bottom, 12)
         }
         .padding()
         .frame(width: 600, height: 600)
@@ -460,12 +684,16 @@ struct ContentView: View {
         }
 
     private func handleRARSelection(_ result: Result<[URL], Error>) {
-        if case .success(let urls) = result, let url = urls.first {
-            appState.handleRARSelection(url: url)
-        } else if case .failure(let error) = result {
-            appState.statusMessage = String(format: NSLocalizedString("file_selection_error", comment: ""), error.localizedDescription)
+            if case .success(let urls) = result, let url = urls.first {
+                appState.handleRARSelection(url: url)
+            } else if case .failure(let error) = result {
+                appState.statusMessage = String(
+                    format: NSLocalizedString("file_selection_error", comment: ""),
+                    error.localizedDescription
+                )
+            }
         }
-    }
+    
     
     private func handleDroppedFiles(providers: [NSItemProvider]) {
         let group = DispatchGroup()

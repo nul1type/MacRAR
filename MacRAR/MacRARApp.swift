@@ -35,7 +35,6 @@ struct MacRARApp: App {
                .onOpenURL { url in
                    appDelegate.handleRarFile(url: url, appState: appState)
                }
-            // MacRARApp.swift
             .onAppear {
                 appState.loadBookmarks()
                 

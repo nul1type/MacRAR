@@ -65,3 +65,54 @@
 "creating_archive" = "Creating archive...";
 "rar_restore_error" = "Failed to restore RAR binary: %@";
 "access_request_message_format" = "The app needs access to the file %@ to work with the archive. Click \"Grant Access\" to provide access.";
+"rar_download_site" = "Download the RAR binary from the official website: https://www.win-rar.com/download.html";
+
+"gatekeeper_title" = "Security Warning";
+"gatekeeper_general" = "macOS has blocked RAR from running.";
+"gatekeeper_message" = "macOS has blocked RAR from running due to security settings.\n\nPath: %@\n\nTo fix this:\n1. Go to System Settings → Privacy & Security\n2. Under Security, click 'Allow Anyway' next to the RAR binary";
+"open_security_settings" = "Open Security Settings";
+"gatekeeper_terminal_fix" = "Alternatively, you can remove the quarantine attribute in Terminal:\nxattr -d com.apple.quarantine \"%@\"";
+
+"rar_permission_error" = "Permission error. Trying to fix...";
+"rar_permission_fix_failed" = "Failed to set executable permissions";
+"rar_ready_message" = "RAR is ready to use";
+"rar_execution_failed" = "RAR execution failed with code: %d";
+"rar_launch_error" = "Failed to launch RAR: %@";
+
+// Английский
+"rar_access_title" = "Grant Access to RAR";
+"rar_access_message" = "Please grant access to the RAR binary in the system dialog";
+"grant_access" = "Grant Access";
+"rar_access_denied" = "Access to RAR was denied";
+"rar_activation_failed" = "Failed to activate RAR";
+"rar_gatekeeper_activated" = "Gatekeeper activated. Please check Security settings";
+
+
+"activating_rar" = "Activating RAR...";
+"gatekeeper_activated" = "Gatekeeper activation successful!";
+"gatekeeper_activation_success" = "RAR has been successfully activated in macOS security system.";
+"gatekeeper_instructions" = "To complete the setup:";
+"gatekeeper_step1" = "Open System Settings → Privacy & Security";
+"gatekeeper_step2" = "Scroll down to the Security section";
+"gatekeeper_step3" = "Click 'Allow Anyway' next to RAR";
+"ive_fixed_it" = "I've fixed it";
+
+"rar_access_title" = "Access Required for RAR";
+"rar_access_message_format" = "To use RAR functionality, please grant access to the file: %@";
+"access_request_button" = "Grant Access";
+"rar_access_denied" = "Access to RAR was denied";
+"gatekeeper_activated" = "Gatekeeper activated. Please check Security settings";
+"activating_rar" = "Activating RAR...";
+
+"gatekeeper_not_activated" = "Please activate Gatekeeper by following the instructions";
+"gatekeeper_blocked" = "RAR is blocked by Gatekeeper";
+"rar_execution_failed" = "RAR execution failed with code: %d";
+
+"gatekeeper_false_positive" = "If you have already allowed this application to run, but you see this message, please:\n1. Try to force the Gatekeeper dialog with the button below\n2. Check the settings manually";
+"gatekeeper_step4" = "If the application is already in the list of allowed, remove it and add it again";
+"trigger_gatekeeper" = "Invoke the Gatekeeper dialog";
+"rar_already_allowed" = "RAR is already allowed in the security settings";
+
+"archive_created_success" = "Archive created successfully!";
+"closing" = "Closing...";
+"archive_creation_canceled" = "Archive creation cancelled";
