@@ -116,37 +116,47 @@ struct ArchiveItemView: View {
     @Binding var selectedFiles: Set<String>
     @Binding var hoveredFile: String?
     
+    @State private var lastClickTime: Date?
+    @State private var tapCount = 0
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Image(systemName: item.isDirectory ? "folder.fill" : "doc")
-                    .foregroundColor(item.isDirectory ? .yellow : .secondary)
-                
-                Text(item.name)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        if !item.isDirectory {
-                            if selectedFiles.contains(item.fullPath) {
-                                selectedFiles.remove(item.fullPath)
-                            } else {
-                                selectedFiles.insert(item.fullPath)
-                            }
-                        }
-                    }
-                    .onHover { hovering in
-                        hoveredFile = hovering ? item.fullPath : nil
-                    }
-                
-                if !item.isDirectory {
-                    Spacer()
+                // Область для иконки и текста
+                HStack {
+                    Image(systemName: item.isDirectory ? "folder.fill" : "doc")
+                        .foregroundColor(item.isDirectory ? .yellow : .secondary)
+                        .frame(width: 24)
                     
-                    if selectedFiles.contains(item.fullPath) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.blue)
+                    Text(item.name)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    handleTap()
+                }
+                .onHover { hovering in
+                    hoveredFile = hovering ? item.fullPath : nil
+                }
+                
+                // Кнопка раскрытия для папок
+                if item.isDirectory {
+                    Button(action: toggleFolder) {
+                        Image(systemName: item.isExpanded ? "chevron.down" : "chevron.right")
                     }
+                    .buttonStyle(.plain)
+                    .frame(width: 20)
+                }
+                
+                // Иконка выделения
+                if isFullySelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.blue)
+                } else if isPartiallySelected {
+                    Image(systemName: "minus.circle")
+                        .foregroundColor(.blue)
                 }
             }
             .padding(.vertical, 4)
@@ -156,6 +166,7 @@ struct ArchiveItemView: View {
                     .cornerRadius(8)
             )
             
+            // Вложенные элементы
             if item.isExpanded, let children = item.children {
                 LazyVStack(alignment: .leading, spacing: 4) {
                     ForEach(children) { child in
@@ -169,29 +180,133 @@ struct ArchiveItemView: View {
                 .padding(.leading, 16)
             }
         }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            if item.isDirectory {
-                withAnimation {
-                    item.isExpanded.toggle()
+        .contextMenu {
+            Button(action: toggleSelection) {
+                Text(isFullySelected ? "Deselect" : "Select")
+                Image(systemName: isFullySelected ? "minus.circle" : "checkmark.circle")
+            }
+        }
+    }
+    
+    // Полностью выделен (для папки - все содержимое выделено)
+    private var isFullySelected: Bool {
+        if item.isDirectory {
+            return containsAllFiles(in: item)
+        }
+        return selectedFiles.contains(item.fullPath)
+    }
+    
+    // Частично выделен (только для папок)
+    private var isPartiallySelected: Bool {
+        guard item.isDirectory else { return false }
+        return containsSomeFiles(in: item) && !isFullySelected
+    }
+    
+    // Проверяет, содержит ли папка все файлы
+    private func containsAllFiles(in directory: ArchiveItem) -> Bool {
+        guard directory.isDirectory, let children = directory.children else { return false }
+        
+        for child in children {
+            if child.isDirectory {
+                if !containsAllFiles(in: child) {
+                    return false
+                }
+            } else {
+                if !selectedFiles.contains(child.fullPath) {
+                    return false
                 }
             }
         }
-        .contextMenu {
-            if !item.isDirectory {
-                Button(action: {
-                    if selectedFiles.contains(item.fullPath) {
-                        selectedFiles.remove(item.fullPath)
-                    } else {
-                        selectedFiles.insert(item.fullPath)
-                    }
-                }) {
-                    Text(selectedFiles.contains(item.fullPath) ?
-                         NSLocalizedString("deselect", comment: "") :
-                         NSLocalizedString("select", comment: ""))
-                    Image(systemName: selectedFiles.contains(item.fullPath) ?
-                          "minus.circle" : "checkmark.circle")
+        return true
+    }
+    
+    // Проверяет, содержит ли папка хотя бы один выделенный файл
+    private func containsSomeFiles(in directory: ArchiveItem) -> Bool {
+        guard directory.isDirectory, let children = directory.children else { return false }
+        
+        for child in children {
+            if child.isDirectory {
+                if containsSomeFiles(in: child) {
+                    return true
                 }
+            } else {
+                if selectedFiles.contains(child.fullPath) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+    
+    private func handleTap() {
+        let now = Date()
+        if let lastTime = lastClickTime, now.timeIntervalSince(lastTime) < 0.3 {
+            tapCount += 1
+            if tapCount >= 2 {
+                // Двойной клик
+                if item.isDirectory {
+                    toggleFolder()
+                }
+                tapCount = 0
+            }
+        } else {
+            // Первый клик в серии
+            tapCount = 1
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                if self.tapCount == 1 {
+                    self.toggleSelection()
+                }
+            }
+        }
+        lastClickTime = now
+    }
+    
+    private func toggleFolder() {
+        withAnimation {
+            item.isExpanded.toggle()
+        }
+    }
+    
+    private func toggleSelection() {
+        if item.isDirectory {
+            // Для папки: выделяем/снимаем все содержимое
+            if isFullySelected || isPartiallySelected {
+                // Снимаем выделение
+                deselectAll(in: item)
+            } else {
+                // Добавляем выделение
+                selectAll(in: item)
+            }
+        } else {
+            // Для файла: просто переключаем состояние
+            if selectedFiles.contains(item.fullPath) {
+                selectedFiles.remove(item.fullPath)
+            } else {
+                selectedFiles.insert(item.fullPath)
+            }
+        }
+    }
+    
+    private func selectAll(in directory: ArchiveItem) {
+        guard directory.isDirectory, let children = directory.children else { return }
+        
+        for child in children {
+            if child.isDirectory {
+                selectAll(in: child)
+            } else {
+                selectedFiles.insert(child.fullPath)
+            }
+        }
+    }
+    
+    private func deselectAll(in directory: ArchiveItem) {
+        guard directory.isDirectory, let children = directory.children else { return }
+        
+        for child in children {
+            if child.isDirectory {
+                deselectAll(in: child)
+            } else {
+                selectedFiles.remove(child.fullPath)
             }
         }
     }
